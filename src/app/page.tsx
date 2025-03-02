@@ -101,16 +101,16 @@ const threeDArray: number[][][] = new Array(x).fill(null).map(() =>
 );
 
 const initial: Lego[] = [
-  { position: new THREE.Vector3(0, 0, 0), color: "#ff0000" },
-  { position: new THREE.Vector3(1, 0, 0), color: "#00ff00" },
-  { position: new THREE.Vector3(0, 1, 0), color: "#0000ff" },
-  { position: new THREE.Vector3(1, 1, 0), color: "#ffff00" }
+  { position: new THREE.Vector3(0, 0, 0), color: "#4285f4" },
+  { position: new THREE.Vector3(1, 0, 0), color: "#db4437" },
+  { position: new THREE.Vector3(0, 1, 0), color: "#f4b400" },
+  { position: new THREE.Vector3(1, 1, 0), color: "#0f9d58" }
 ]
 
-
-
-export default function Home() {
+const useBoard = () => {
+  const [selected, setSelected] = useState<Lego | undefined>();
   const [legos, setLegos] = useState<Lego[]>(initial);
+
   const gridRef = useMemo(() => {
     const array: (Lego | null)[][][] = Array.from({ length: x }, () =>
       Array.from({ length: y }, () =>
@@ -120,50 +120,47 @@ export default function Home() {
     legos.forEach((lego) => { array[lego.position.x][lego.position.y][lego.position.z] = lego; })
     return array
   }, [legos]);
-  const [selected, setSelected] = useState<Lego | undefined>();
-  const [fov, setFov] = useState(20)
 
   const moveSelectedLego = (dx: number, dy: number) => {
     if (selected == null) return
     const { x, y, z } = selected.position
     let z_position = 0
-    console.log(x + dx)
-    console.log(y + dy)
     while (gridRef[x + dx][y + dy][z_position]) {
       z_position++;
       if (z_position > 10) return;
     }
 
-    const movedLego = { ...selected, position: new THREE.Vector3(x + dx, y + dy, z_position) }
+    const updated = { ...selected, position: new THREE.Vector3(x + dx, y + dy, z_position) };
+    setSelected(updated)
+    setLegos((prevLegos) => prevLegos.map(lego => (lego === selected ? updated : lego)))
+  }
 
-    setLegos(legos.map(lego => lego === selected ? movedLego : lego));
-    setSelected(movedLego);
-  };
+  return {
+    legos,
+    moveSelectedLego,
+    selected,
+    setSelected,
+  }
+}
+
+
+export default function Home() {
+  const board = useBoard();
+  const [fov, setFov] = useState(20)
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       switch (event.key) {
-        case ' ':
-          setSelected(undefined);
-          break;
-        case 'ArrowLeft':
-          moveSelectedLego(-1, 0);
-          break;
-        case 'ArrowRight':
-          moveSelectedLego(1, 0);
-          break;
-        case 'ArrowUp':
-          moveSelectedLego(0, 1);
-          break;
-        case 'ArrowDown':
-          moveSelectedLego(0, -1);
-          break;
+        case ' ': board.setSelected(undefined); break;
+        case 'ArrowLeft': board.moveSelectedLego(-1, 0); break;
+        case 'ArrowRight': board.moveSelectedLego(1, 0); break;
+        case 'ArrowUp': board.moveSelectedLego(0, 1); break;
+        case 'ArrowDown': board.moveSelectedLego(0, -1); break;
       }
-
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => { window.removeEventListener('keydown', handleKeyDown) }
-  }, [selected]
+  }, [board]
   );
 
   // Removed duplicate code blocks for selecting lego based on position
@@ -186,23 +183,19 @@ export default function Home() {
       <Environment preset="apartment" />
       {/* <Plane /> */}
       <Suspense>
-        {legos.map((lego, index) => (
+        {board.legos.map((lego: Lego, index) => (
           <Lego
             key={index}
             position={lego.position}
             color={lego.color}
-            isSelected={selected === lego}
-            onLegoClick={(e) => { setSelected(lego) }}
+            isSelected={board.selected === lego}
+            onLegoClick={(e) => { board.setSelected(lego) }}
           />
         ))}
         <Box onMouseMove={(e) => { }} />
         <Plane />
       </Suspense>
       <CameraControls truckSpeed={0} dollySpeed={0} minPolarAngle={0} maxPolarAngle={Math.PI / 2} />
-      {/* <AccumulativeShadows temporal frames={100} color="orange" colorBlend={2} opacity={0.7} scale={60} position={[0, 0, 0]}>
-          <RandomizedLight amount={8} radius={15} ambient={0.5} intensity={1} position={[-5, 10, -5]} size={90} />
-        </AccumulativeShadows> */}
-      {/* <Macintosh /> */}
       <EffectComposer enableNormalPass multisampling={8}>
         <N8AO aoRadius={0.5} intensity={1} />
 
