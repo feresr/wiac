@@ -1,14 +1,25 @@
 
 import { useMemo, useRef, useState } from 'react';
-import type { Lego } from './types'
+import { Lego } from './types'
 
 const calculateHash2D = (grid: (Lego | null)[][]) => {
-    return grid.flat(2).map((cell) => (cell ? 1 : 0)).join();
+    return grid.flat(2).map((cell) => {
+        if (cell instanceof Lego) {
+            return cell.hash();
+        } else {
+            return ""; // Or handle the case where cell is null/undefined
+        }
+    }).join(',');
 };
 
-
 const calculateHash3D = (grid: (Lego | null)[][][]) => {
-    return grid.flat(2).map((cell) => (cell ? 1 : 0)).join();
+    return grid.flat(2).map((cell) => {
+        if (cell instanceof Lego) {
+            return cell.hash();
+        } else {
+            return ""; // Or handle the case where cell is null/undefined
+        }
+    }).join(',');
 };
 
 export const useGrid2D = (x: number, y: number) => {
@@ -16,12 +27,15 @@ export const useGrid2D = (x: number, y: number) => {
     const [hash, setHash] = useState(calculateHash2D(grid.current));
 
     const updateGrid = (x: number, y: number, value: Lego | null) => {
+        if (x < 0 || x >= grid.current.length || y < 0 || y >= grid.current[0].length) {
+            return;
+        }
         grid.current[x][y] = value;
         setHash(calculateHash2D(grid.current)); // Trigger effect
     };
 
     const extractLegoVectors = (grid: (Lego | null)[][]): Lego[] => {
-        const vectors: LegoVector[] = [];
+        const vectors: Lego[] = [];
         grid.forEach((plane, x) =>
             plane.forEach((lego, y) => {
                 if (lego) vectors.push(lego)
@@ -50,6 +64,9 @@ export const useGrid3D = (x: number, y: number, z: number) => {
 
     const [hash, setHash] = useState(calculateHash3D(grid.current));
     const updateGrid = (x: number, y: number, z: number, value: Lego | null) => {
+        if (x < 0 || x >= grid.current.length || y < 0 || y >= grid.current[0].length || z < 0 || z >= grid.current[0][0].length) {
+            return;
+        }
         grid.current[x][y][z] = value;
         setHash(calculateHash3D(grid.current)); // Trigger effect
     };
