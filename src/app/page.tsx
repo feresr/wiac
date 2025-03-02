@@ -1,153 +1,71 @@
 'use client'
-import { Canvas, ThreeEvent, useFrame, useThree, Vector2, Vector3 } from '@react-three/fiber'
-import { OrbitControls, useGLTF, Environment, AccumulativeShadows, RandomizedLight, CameraControls, SoftShadows } from '@react-three/drei'
 import { EffectComposer, DepthOfField, ToneMapping, Bloom } from '@react-three/postprocessing'
-import { useDrag } from '@use-gesture/react'
-import { m, motion } from "motion/react"
-
-import * as THREE from "three";
-
-
-
+import { Environment, CameraControls, SoftShadows } from '@react-three/drei'
+import { Suspense, useEffect, useState } from 'react'
 import { N8AO } from '@react-three/postprocessing'
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import { resourceUsage } from 'process'
-import { a, u } from 'motion/react-client'
-
-
-function Macintosh() {
-  const { scene } = useGLTF("/macintosh.glb")
-  return <primitive scale={3.0} object={scene} />
-}
-
-const Plane = () => {
-  return (
-    <mesh
-      position={[0, -0.5, 0]}
-      rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-      <planeGeometry args={[100, 100]} />
-      <meshPhysicalMaterial color={"white"} roughness={0.8} metalness={0.0} clearcoat={0.0} clearcoatRoughness={0.2} />
-    </mesh>
-  )
-}
-
-const Lego = ({ onLegoClick, isSelected, position, color }: { onLegoClick: (e: ThreeEvent<MouseEvent>) => void, isSelected: boolean, position: THREE.Vector3, color: string }) => {
-  const currentPosition = useRef(new THREE.Vector3()); // Store the animated position
-  const ref = useRef<THREE.Mesh>(null)
-
-  const targetPosition = useMemo(() => {
-    return new THREE.Vector3(position.x - 5 + 0.5, position.z + (isSelected ? 2.5 : 1.5), position.y - 5 + 0.5);
-  }, [position, isSelected]);
-
-
-  useFrame((state) => {
-    if (ref.current) {
-      currentPosition.current.lerp(targetPosition, 0.2); // Interpolate smoothly
-      ref.current.position.copy(currentPosition.current);
-
-      if (isSelected) {
-        const t = state.clock.getElapsedTime()
-        ref.current.rotation.x = THREE.MathUtils.lerp(ref.current.rotation.x, Math.cos(t / 1) / 5 + 0.25, 0.2)
-        ref.current.rotation.y = THREE.MathUtils.lerp(ref.current.rotation.y, Math.sin(t / 2) / 7, 0.2)
-        ref.current.rotation.z = THREE.MathUtils.lerp(ref.current.rotation.z, Math.sin(t / 4) / 8, 0.2)
-      } else {
-        ref.current.rotation.x = THREE.MathUtils.lerp(ref.current.rotation.x, 0, 0.1)
-        ref.current.rotation.y = THREE.MathUtils.lerp(ref.current.rotation.y, 0, 0.1)
-        ref.current.rotation.z = THREE.MathUtils.lerp(ref.current.rotation.z, 0, 0.1)
-      }
-    }
-  });
-
-  return (
-    <mesh
-      ref={ref}
-      position={currentPosition.current} // initial position
-      castShadow
-      onClick={(e) => {
-        onLegoClick(e)
-      }}
-    >
-      <boxGeometry args={[1, 1, 1]} />
-      <meshPhysicalMaterial color={color} roughness={1.0} metalness={0.0} clearcoat={0.0} clearcoatRoughness={0.1} />
-    </mesh>
-  )
-}
-const Box = ({ onMouseMove }: { onMouseMove: (e: Vector2) => void }) => {
-  const scale = new THREE.Vector2(10, 10)
-  const invert = new THREE.Vector2(1, -1)
-  const offset = new THREE.Vector2(5, 5)
-  return (
-    <mesh receiveShadow
-      position={[0, 0.0, 0]} castShadow>
-      <boxGeometry args={[10, 2, 10]} />
-      <meshPhysicalMaterial color={"#f1AC4B"} roughness={0.1} metalness={0.0} clearcoat={0.8} clearcoatRoughness={0.0} />
-    </mesh>
-  )
-}
-
-type Lego = {
-  position: THREE.Vector3;
-  color: string;
-}
-
+import { useGrid2D, useGrid3D } from './utils'
+import { Canvas } from '@react-three/fiber'
+import { Brick, Plane } from './Lego'
+import type { Lego } from './types'
+import * as THREE from "three";
 
 const x = 10; // number of layers
 const y = 10; // number of rows
 const z = 10; // number of columns
-// Initialize a 3D array of numbers
-const threeDArray: number[][][] = new Array(x).fill(null).map(() =>
-  new Array(y).fill(null).map(() =>
-    new Array(z).fill(0) // Initialize each element to 0
-  )
-);
 
 const initial: Lego[] = [
-  { position: new THREE.Vector3(0, 0, 0), color: "#4285f4" },
-  { position: new THREE.Vector3(1, 0, 0), color: "#db4437" },
-  { position: new THREE.Vector3(0, 1, 0), color: "#f4b400" },
-  { position: new THREE.Vector3(1, 1, 0), color: "#0f9d58" }
+  { id: 1, position: new THREE.Vector3(0, 0, 0), color: "#4285f4" },
+  { id: 2, position: new THREE.Vector3(1, 0, 0), color: "#db4437" },
+  { id: 3, position: new THREE.Vector3(0, 1, 0), color: "#f4b400" },
+  { id: 4, position: new THREE.Vector3(1, 1, 0), color: "#0f9d58" }
 ]
 
 const useBoard = () => {
+  const legos = useGrid3D(10, 10, 10);
+  const base = useGrid2D(10, 10)
   const [selected, setSelected] = useState<Lego | undefined>();
-  const [legos, setLegos] = useState<Lego[]>(initial);
-
-  const grid = useRef<(Lego | null)[][][]>(
-    Array.from({ length: x }, () =>
-      Array.from({ length: y }, () => Array.from({ length: z }, () => null)
-      )
-    )
-  );
 
   useEffect(() => {
-    // Initialize the grid for the first time with the current legos
-    legos.forEach(lego => {
+    // Initialise the base
+    for (let x = 0; x < 10; x++) {
+      for (let y = 0; y < 10; y++) {
+        const randomFloat = Math.random() * -0.05;
+        const lego = {
+          id: x + y + Math.random(), // this is wrong
+          position: new THREE.Vector3(x, y, -1 + randomFloat),
+          color: "#f1AC4B"
+        }
+        base.updateGrid(x, y, lego)
+      }
+    }
+
+    initial.forEach(lego => {
       const { x, y, z } = lego.position;
-      grid.current[x][y][z] = lego;
-    });
-  })
+      legos.updateGrid(x, y, z, lego)
+    })
+  }, [])
 
   const moveSelectedLego = (dx: number, dy: number) => {
     if (selected == null) return
     const { x, y, z } = selected.position
     let z_position = 0
-    while (grid.current[x + dx][y + dy][z_position]) {
+    while (legos.grid.current[x + dx][y + dy][z_position]) {
       z_position++;
       if (z_position > 10) return;
     }
 
     // Move lego
     const updated = { ...selected, position: new THREE.Vector3(x + dx, y + dy, z_position) };
-    grid.current[x][y][z] = null
-    grid.current[updated.position.x][updated.position.y][updated.position.z] = updated
+    legos.updateGrid(x, y, z, null)
+    legos.updateGrid(updated.position.x, updated.position.y, updated.position.z, updated)
+
     setSelected(updated)
-    setLegos((prevLegos) => prevLegos.map(lego => (lego === selected ? updated : lego)))
   }
 
   const selectLego = (lego: Lego | undefined) => {
     if (lego) {
       const { x, y, z } = lego.position
-      if (grid.current[x][y][z + 1]) {
+      if (legos.grid.current[x][y][z + 1]) {
         // This lego can't be selected. It has a lego on top 
         return
       }
@@ -160,6 +78,7 @@ const useBoard = () => {
     moveSelectedLego,
     selected,
     selectLego,
+    base
   }
 }
 
@@ -174,8 +93,8 @@ export default function Home() {
         case ' ': board.selectLego(undefined); break;
         case 'ArrowLeft': board.moveSelectedLego(-1, 0); break;
         case 'ArrowRight': board.moveSelectedLego(1, 0); break;
-        case 'ArrowUp': board.moveSelectedLego(0, 1); break;
-        case 'ArrowDown': board.moveSelectedLego(0, -1); break;
+        case 'ArrowUp': board.moveSelectedLego(0, -1); break;
+        case 'ArrowDown': board.moveSelectedLego(0, 1); break;
       }
     }
     window.addEventListener('keydown', handleKeyDown);
@@ -188,39 +107,42 @@ export default function Home() {
     <Canvas
       dpr={[1, 1.5]} gl={{ antialias: false }}
       shadows
-      camera={{ position: [20, 26, 20], fov: fov }}
+      camera={{ position: [24, 16, 24], fov: fov }}
       style={{ width: '100vw', height: '100vh' }}>
       <SoftShadows></SoftShadows>
-      {/* <fog attach="fog" color="#F1AC4B" near={10} far={60} /> */}
       <color attach="background" args={['#F1AC4B']} />
-
-
-      <rectAreaLight position={[-10, 10, -15]} width={10} height={10} lookAt={[0, 0, 0]} ></rectAreaLight>
-      {/* <directionalLight castShadow position={[-10, 10, -15]} /> */}
-      {/* <pointLight position={[-10, 10, -10]} /> */}
-      <ambientLight intensity={0.7} />
+      <directionalLight castShadow position={[-10, 8, -10]} lookAt={[0, 0, 0]} />
+      <directionalLight position={[4, 17, 4]} lookAt={[0, 0, 0]} />
+      <ambientLight intensity={0.6} />
 
       <Environment preset="apartment" />
-      {/* <Plane /> */}
       <Suspense>
-        {board.legos.map((lego: Lego, index) => (
-          <Lego
-            key={index}
+        {board.legos.vector.map((lego: Lego, index) => (
+          <Brick
+            key={lego.id}
             position={lego.position}
             color={lego.color}
             isSelected={board.selected === lego}
             onLegoClick={(e) => { board.selectLego(lego) }}
           />
         ))}
-        <Box onMouseMove={(e) => { }} />
+        {board.base.vector.map((lego: Lego, index) => (
+          <Brick
+            key={index}
+            position={lego.position}
+            color={lego.color}
+            isSelected={board.selected === lego}
+            onLegoClick={(e) => { }}
+          />
+        ))}
         <Plane />
       </Suspense>
       <CameraControls truckSpeed={0} dollySpeed={0} minPolarAngle={0} maxPolarAngle={Math.PI / 2} />
       <EffectComposer enableNormalPass multisampling={8}>
         <N8AO aoRadius={0.5} intensity={1} />
-
         <Bloom luminanceThreshold={1} intensity={0.5} levels={9} mipmapBlur />
       </EffectComposer>
     </Canvas>
   );
 }
+
