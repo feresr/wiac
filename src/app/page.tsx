@@ -12,6 +12,7 @@ import * as THREE from "three";
 import { N8AO } from '@react-three/postprocessing'
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { resourceUsage } from 'process'
+import { a, u } from 'motion/react-client'
 
 
 function Macintosh() {
@@ -111,35 +112,54 @@ const useBoard = () => {
   const [selected, setSelected] = useState<Lego | undefined>();
   const [legos, setLegos] = useState<Lego[]>(initial);
 
-  const gridRef = useMemo(() => {
-    const array: (Lego | null)[][][] = Array.from({ length: x }, () =>
-      Array.from({ length: y }, () =>
-        Array.from({ length: z }, () => null)
+  const grid = useRef<(Lego | null)[][][]>(
+    Array.from({ length: x }, () =>
+      Array.from({ length: y }, () => Array.from({ length: z }, () => null)
       )
     )
-    legos.forEach((lego) => { array[lego.position.x][lego.position.y][lego.position.z] = lego; })
-    return array
-  }, [legos]);
+  );
+
+  useEffect(() => {
+    // Initialize the grid for the first time with the current legos
+    legos.forEach(lego => {
+      const { x, y, z } = lego.position;
+      grid.current[x][y][z] = lego;
+    });
+  })
 
   const moveSelectedLego = (dx: number, dy: number) => {
     if (selected == null) return
     const { x, y, z } = selected.position
     let z_position = 0
-    while (gridRef[x + dx][y + dy][z_position]) {
+    while (grid.current[x + dx][y + dy][z_position]) {
       z_position++;
       if (z_position > 10) return;
     }
 
+    // Move lego
     const updated = { ...selected, position: new THREE.Vector3(x + dx, y + dy, z_position) };
+    grid.current[x][y][z] = null
+    grid.current[updated.position.x][updated.position.y][updated.position.z] = updated
     setSelected(updated)
     setLegos((prevLegos) => prevLegos.map(lego => (lego === selected ? updated : lego)))
+  }
+
+  const selectLego = (lego: Lego | undefined) => {
+    if (lego) {
+      const { x, y, z } = lego.position
+      if (grid.current[x][y][z + 1]) {
+        // This lego can't be selected. It has a lego on top 
+        return
+      }
+    }
+    setSelected(lego)
   }
 
   return {
     legos,
     moveSelectedLego,
     selected,
-    setSelected,
+    selectLego,
   }
 }
 
@@ -151,7 +171,7 @@ export default function Home() {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       switch (event.key) {
-        case ' ': board.setSelected(undefined); break;
+        case ' ': board.selectLego(undefined); break;
         case 'ArrowLeft': board.moveSelectedLego(-1, 0); break;
         case 'ArrowRight': board.moveSelectedLego(1, 0); break;
         case 'ArrowUp': board.moveSelectedLego(0, 1); break;
@@ -189,7 +209,7 @@ export default function Home() {
             position={lego.position}
             color={lego.color}
             isSelected={board.selected === lego}
-            onLegoClick={(e) => { board.setSelected(lego) }}
+            onLegoClick={(e) => { board.selectLego(lego) }}
           />
         ))}
         <Box onMouseMove={(e) => { }} />
