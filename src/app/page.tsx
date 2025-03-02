@@ -1,5 +1,5 @@
 'use client'
-import { EffectComposer, DepthOfField, ToneMapping, Bloom } from '@react-three/postprocessing'
+import { EffectComposer, DepthOfField, ToneMapping, Bloom, Grid } from '@react-three/postprocessing'
 import { Environment, CameraControls, SoftShadows } from '@react-three/drei'
 import { Suspense, useEffect, useState } from 'react'
 import { N8AO } from '@react-three/postprocessing'
@@ -47,6 +47,8 @@ const useBoard = () => {
   const moveSelectedLego = (dx: number, dy: number) => {
     if (selected == null) return
     const [x, y, z] = selected.position
+    if (x + dx < 0 || x + dx >= legos.grid.current.length) return
+    if (y + dy < 0 || y + dy >= legos.grid.current[0].length) return
     let z_position = 0
     while (legos.grid.current[x + dx][y + dy][z_position]) {
       z_position++;
@@ -119,8 +121,18 @@ export default function Home() {
       style={{ width: '100vw', height: '100vh' }}>
       <SoftShadows></SoftShadows>
       <color attach="background" args={['#F1AC4B']} />
-      <directionalLight castShadow position={[-10, 8, -10]} lookAt={[0, 0, 0]} />
-      <directionalLight position={[4, 17, 4]} lookAt={[0, 0, 0]} />
+      <directionalLight castShadow position={[-10, 8, -10]} lookAt={[0, 0, 0]}
+        shadow-camera-left={-10}
+        shadow-camera-right={10}
+        shadow-camera-top={10}
+        shadow-camera-bottom={-10}
+      />
+      <directionalLight position={[4, 17, 4]} lookAt={[0, 0, 0]}
+        shadow-camera-left={-10}
+        shadow-camera-right={10}
+        shadow-camera-top={10}
+        shadow-camera-bottom={-10}
+      />
       <ambientLight intensity={0.6} />
       <Environment preset="apartment" />
       <Suspense>

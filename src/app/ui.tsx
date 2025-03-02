@@ -2,7 +2,6 @@ import { RoundedBox } from "@react-three/drei";
 import { ThreeEvent, useFrame, useLoader } from "@react-three/fiber";
 import { useRef, useMemo } from "react";
 import * as THREE from "three";
-import { MathUtils } from 'three';
 
 
 export const Base = ({ onLegoClick, isSelected, position, color }: { onLegoClick: (e: ThreeEvent<MouseEvent>) => void, isSelected: boolean, position: [number, number], color: string }) => {
@@ -90,7 +89,10 @@ export const Brick = ({ onLegoClick, isSelected, position, color }: { onLegoClic
 
     useFrame((state) => {
         if (ref.current) {
-            currentPosition.current.lerp(targetPosition, 0.2); // Interpolate smoothly
+            // currentPosition.current.lerp(targetPosition, 0.2); // Interpolate smoothly
+            currentPosition.current.x = THREE.MathUtils.lerp(ref.current.position.x, targetPosition.x, 0.1);
+            currentPosition.current.z = THREE.MathUtils.lerp(ref.current.position.z, targetPosition.z, 0.1);
+            currentPosition.current.y = THREE.MathUtils.lerp(ref.current.position.y, targetPosition.y, 0.1);
             ref.current.position.copy(currentPosition.current);
 
             if (isSelected) {
