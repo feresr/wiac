@@ -1,16 +1,14 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 'use client'
-import { EffectComposer, DepthOfField, ToneMapping, Bloom, Grid } from '@react-three/postprocessing'
-import { Environment, CameraControls, SoftShadows } from '@react-three/drei'
+import { EffectComposer, Bloom } from '@react-three/postprocessing'
+import { Environment, CameraControls } from '@react-three/drei'
 import { Suspense, useEffect, useState } from 'react'
 import { N8AO } from '@react-three/postprocessing'
 import { useGrid2D, useGrid3D } from './utils'
 import { Canvas } from '@react-three/fiber'
 import { Base, Brick, Plane } from './ui'
 import { Lego } from './types'
-
-const x = 10; // number of layers
-const y = 10; // number of rows
-const z = 10; // number of columns
 
 const initial: Lego[] = [
   new Lego(1, [0, 0, 0], "#4285f4"),
@@ -19,26 +17,33 @@ const initial: Lego[] = [
   new Lego(4, [1, 1, 0], "#0f9d58")
 ]
 
+const board_x = 10; // number of layers
+const board_y = 10; // number of rows
+const board_z = 4; // number of columns
+
 const useBoard = () => {
-  const legos = useGrid3D(10, 10, 10);
-  const base = useGrid2D(10, 10)
+  const legos = useGrid3D(board_x, board_y, board_z);
+  const base = useGrid2D(board_x, board_y)
   const [selected, setSelected] = useState<Lego | undefined>();
 
   useEffect(() => {
     // Initialise the base
-    for (let x = 0; x < 10; x++) {
-      for (let y = 0; y < 10; y++) {
-        const lego = new Lego(
+    const baseLegos: Lego[] = []
+    for (let x = 0; x < board_x; x++) {
+      for (let y = 0; y < board_y; y++) {
+        baseLegos.push(new Lego(
           ((x * 73856093) ^ (y * 19349663)) >>> 0,
           [x, y, 0] as [number, number, number],
           "#f1AC4B"
-        )
-        base.updateGrid(x, y, lego)
+        ))
       }
     }
-
-    initial.forEach(lego => {
-      const [x, y, z] = lego.position;
+    baseLegos.forEach((lego) => {
+      const [x, y, z] = lego.position
+      base.updateGrid(x, y, lego)
+    })
+    initial.forEach((lego) => {
+      const [x, y, z] = lego.position
       legos.updateGrid(x, y, z, lego)
     })
   }, [])
@@ -47,8 +52,8 @@ const useBoard = () => {
   const moveSelectedLego = (dx: number, dy: number) => {
     if (selected == null) return
     const [x, y, z] = selected.position
-    if (x + dx < 0 || x + dx >= legos.grid.current.length) return
-    if (y + dy < 0 || y + dy >= legos.grid.current[0].length) return
+    if (x + dx < 0 || x + dx >= board_x) return
+    if (y + dy < 0 || y + dy >= board_y) return
     let z_position = 0
     while (legos.grid.current[x + dx][y + dy][z_position]) {
       z_position++;
@@ -63,13 +68,13 @@ const useBoard = () => {
     setSelected(updated)
   }
   useEffect(() => {
-    console.log(selected?.position)
     base.vector.forEach((lego) => {
       if (lego.position[0] == selected?.position[0] && lego.position[1] == selected?.position[1]) {
         lego.color = "#fad096"
       } else {
-        lego.color = "#f1AC4B"
+        lego.color = lego.color == "black" ? lego.color : "#f1AC4B"
       }
+      // UNCOMMENT THISSS TODO: MAYbE
       base.updateGrid(lego.position[0], lego.position[1], lego)
     })
   }, [selected])
@@ -84,13 +89,19 @@ const useBoard = () => {
     }
     setSelected(lego)
   }
+  const selectBase = (lego: Lego | undefined) => {
+    if (lego == undefined) return
+    lego.color = lego.color == "black" ? "green" : "black"
+    base.updateGrid(lego.position[0], lego.position[1], lego)
+  }
 
   return {
     legos,
     moveSelectedLego,
     selected,
     selectLego,
-    base
+    base,
+    selectBase
   }
 }
 
@@ -119,7 +130,6 @@ export default function Home() {
       shadows
       camera={{ position: [24, 16, 24], fov: 20 }}
       style={{ width: '100vw', height: '100vh' }}>
-      <SoftShadows></SoftShadows>
       <color attach="background" args={['#F1AC4B']} />
       <directionalLight castShadow position={[-10, 8, -10]} lookAt={[0, 0, 0]}
         shadow-camera-left={-10}
@@ -133,7 +143,7 @@ export default function Home() {
         shadow-camera-top={10}
         shadow-camera-bottom={-10}
       />
-      <ambientLight intensity={0.6} />
+      <ambientLight intensity={0.1} />
       <Environment preset="apartment" />
       <Suspense>
         {board.legos.vector.map((lego: Lego, index) => (
@@ -151,7 +161,7 @@ export default function Home() {
             position={[lego.position[0], lego.position[1]]}
             color={lego.color}
             isSelected={board.selected === lego}
-            onLegoClick={(e) => { board.selectLego(undefined) }}
+            onLegoClick={(e) => { board.selectLego(undefined); board.selectBase(lego); e.stopPropagation() }}
           />
         ))}
         <Plane />

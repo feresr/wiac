@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 import { RoundedBox } from "@react-three/drei";
 import { ThreeEvent, useFrame, useLoader } from "@react-three/fiber";
 import { useRef, useMemo } from "react";

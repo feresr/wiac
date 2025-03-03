@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 
 export class Lego {
     public id: number
@@ -14,7 +15,7 @@ export class Lego {
         this.color = color
     }
 
-    hash(): string {
+    hash(): number {
         const [x, y, z] = this.position;
         let hash = 17; // Starting with a prime number to avoid patterns
         hash = (hash * 31 + this.id) & 0xFFFFFFFF; // Incorporate `id` (number)
@@ -24,11 +25,12 @@ export class Lego {
         for (let i = 0; i < this.color.length; i++) {
             hash = (hash * 31 + this.color.charCodeAt(i)) & 0xFFFFFFFF; // Incorporate `color` (string)
         }
-        return hash.toString(16); // Return hexadecimal string representation
+        return hash
     }
 }
 
 type Base = {
+    id : number
     position: [number, number];
     color: string;
 }

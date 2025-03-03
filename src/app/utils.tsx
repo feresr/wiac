@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 
 import { useMemo, useRef, useState } from 'react';
 import { Lego } from './types'
